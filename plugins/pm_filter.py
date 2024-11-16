@@ -3008,37 +3008,68 @@ async def advantage_spell_chok(client, name, msg, reply_msg, vj_search):
         ]]
         if NO_RESULTS_MSG:
             await client.send_message(chat_id=LOG_CHANNEL, text=(script.NORSLTS.format(reqstr.id, reqstr.mention, mv_rqst)))
-        k = await reply_msg.edit_text(text=script.I_CUDNT.format(mv_rqst), reply_markup=InlineKeyboardMarkup(button))
+        k = await reply_msg.edit_text(
+            text=script.I_CUDNT.format(mv_rqst),
+            reply_markup=InlineKeyboardMarkup(button)
+        )
         await asyncio.sleep(30)
         await k.delete()
         return
-    movielist += [movie.get('title') for movie in movies]
-    movielist += [f"{movie.get('title')} {movie.get('year')}" for movie in movies]
+    except Exception as e:
+        print(f"Error during initial response: {e}")
+        return
+
+    # Prepare the list of movie titles for spell-checking
+    movielist = []
+    movielist += [movie.get('title') for movie in movies if movie.get('title')]
+    movielist += [f"{movie.get('title')} {movie.get('year')}" for movie in movies if movie.get('title') and movie.get('year')]
     SPELL_CHECK[mv_id] = movielist
-    if AI_SPELL_CHECK == True and vj_search == True:
-        vj_search_new = False
-        vj_ai_msg = await reply_msg.edit_text("<b><i>Advance Ai Try To Find Your Movie With Your Wrong Spelling.</i></b>")
-        movienamelist = []
-        movienamelist += [movie.get('title') for movie in movies]
-        for techvj in movienamelist:
-            try:
-                mv_rqst = mv_rqst.capitalize()
-            except:
-                pass
-            if mv_rqst.startswith(techvj[0]):
-                await auto_filter(client, techvj, msg, reply_msg, vj_search_new)
-                break
-        reqst_gle = mv_rqst.replace(" ", "+")
-        button = [[
-            InlineKeyboardButton("Gᴏᴏɢʟᴇ", url=f"https://www.google.com/search?q={reqst_gle}")
-        ]]
+
+    # AI Spell Check Handling
+    if AI_SPELL_CHECK and vj_search:
+        await ai_spell_check(client, msg, reply_msg, mv_rqst, movies, script, reqstr)
+    else:
+        await manual_spell_check(client, msg, reply_msg, mv_rqst, movielist, script, reqstr1, settings)
+
+async def ai_spell_check(client, msg, reply_msg, mv_rqst, movies, script, reqstr):
+    try:
+        vj_ai_msg = await reply_msg.edit_text("<b><i>Advance AI is trying to find your movie...</i></b>")
+    except Exception as e:
+        print(f"Error in AI spell check message: {e}")
+        return
+
+    movienamelist = [movie.get('title') for movie in movies if movie.get('title')]
+    for techvj in movienamelist:
+        try:
+            mv_rqst = mv_rqst.capitalize()
+        except Exception as e:
+            print(f"Error capitalizing movie request: {e}")
+            continue
+
+        if mv_rqst.startswith(techvj[0]):
+            await auto_filter(client, techvj, msg, reply_msg, False)
+            return
+
+    reqst_gle = mv_rqst.replace(" ", "+")
+    button = [[InlineKeyboardButton("Gᴏᴏɢʟᴇ", url=f"https://www.google.com/search?q={reqst_gle}")]]
+    try:
         if NO_RESULTS_MSG:
-            await client.send_message(chat_id=LOG_CHANNEL, text=(script.NORSLTS.format(reqstr.id, reqstr.mention, mv_rqst)))
-        k = await reply_msg.edit_text(text=script.I_CUDNT.format(mv_rqst), reply_markup=InlineKeyboardMarkup(button))
+            await client.send_message(
+                chat_id=LOG_CHANNEL,
+                text=(script.NORSLTS.format(reqstr.id, reqstr.mention, mv_rqst))
+            )
+        k = await reply_msg.edit_text(
+            text=script.I_CUDNT.format(mv_rqst),
+            reply_markup=InlineKeyboardMarkup(button)
+        )
         await asyncio.sleep(30)
         await k.delete()
-        return
-    else:
+    except Exception as e:
+        print(f"Error in Google button or AI message: {e}")
+
+async def manual_spell_check(client, msg, reply_msg, mv_rqst, movielist, script, reqstr1, settings):
+    try:
+        # Prepare buttons for manual spell-check results
         btn = [
             [
                 InlineKeyboardButton(
@@ -3049,21 +3080,19 @@ async def advantage_spell_chok(client, name, msg, reply_msg, vj_search):
             for k, movie_name in enumerate(movielist)
         ]
         btn.append([InlineKeyboardButton(text="Close", callback_data=f'spol#{reqstr1}#close_spellcheck')])
+        
         spell_check_del = await reply_msg.edit_text(
             text=script.CUDNT_FND.format(mv_rqst),
             reply_markup=InlineKeyboardMarkup(btn)
         )
-        try:
-            if settings['auto_delete']:
-                await asyncio.sleep(600)
-                await spell_check_del.delete()
-        except KeyError:
-            grpid = await active_connection(str(msg.from_user.id))
-            await save_group_settings(grpid, 'auto_delete', True)
-            settings = await get_settings(msg.chat.id)
-            if settings['auto_delete']:
-                await asyncio.sleep(600)
-                await spell_check_del.delete()
+
+        # Auto-delete the spell-check message if enabled
+        if settings.get('auto_delete', False):
+            await asyncio.sleep(600)
+            await spell_che
+ck_del.delete()
+    except Exception as e:
+        print(f"Error during manual spell-check: {e}")
 
 async def manual_filters(client, message, text=False):
     settings = await get_settings(message.chat.id)
