@@ -3015,7 +3015,7 @@ async def advantage_spell_chok(client, name, msg, reply_msg, vj_search):
         await asyncio.sleep(30)
         await k.delete()
         return
-    except Exception as e:
+except Exception as e:
         print(f"Error during initial response: {e}")
         return
 
