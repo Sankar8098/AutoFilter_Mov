@@ -2996,18 +2996,6 @@ async def advantage_spell_chok(client, name, msg, reply_msg, vj_search):
         ]]
         if NO_RESULTS_MSG:
             await client.send_message(chat_id=LOG_CHANNEL, text=(script.NORSLTS.format(reqstr.id, reqstr.mention, mv_rqst)))
-        k = await reply_msg.edit_text(text=script.I_CUDNT.format(mv_rqst), reply_markup=InlineKeyboardMarkup(button))
-        await asyncio.sleep(30)
-        await k.delete()
-        return
-    movielist = []
-    if not movies:
-        reqst_gle = mv_rqst.replace(" ", "+")
-        button = [[
-            InlineKeyboardButton("Gᴏᴏɢʟᴇ", url=f"https://www.google.com/search?q={reqst_gle}")
-        ]]
-        if NO_RESULTS_MSG:
-            await client.send_message(chat_id=LOG_CHANNEL, text=(script.NORSLTS.format(reqstr.id, reqstr.mention, mv_rqst)))
         k = await reply_msg.edit_text(
             text=script.I_CUDNT.format(mv_rqst),
             reply_markup=InlineKeyboardMarkup(button)
@@ -3015,13 +3003,12 @@ async def advantage_spell_chok(client, name, msg, reply_msg, vj_search):
         await asyncio.sleep(30)
         await k.delete()
         return
-except Exception as e:
+    except Exception as e:
         print(f"Error during initial response: {e}")
         return
 
     # Prepare the list of movie titles for spell-checking
-    movielist = []
-    movielist += [movie.get('title') for movie in movies if movie.get('title')]
+    movielist = [movie.get('title') for movie in movies if movie.get('title')]
     movielist += [f"{movie.get('title')} {movie.get('year')}" for movie in movies if movie.get('title') and movie.get('year')]
     SPELL_CHECK[mv_id] = movielist
 
@@ -3037,6 +3024,62 @@ async def ai_spell_check(client, msg, reply_msg, mv_rqst, movies, script, reqstr
     except Exception as e:
         print(f"Error in AI spell check message: {e}")
         return
+
+    movienamelist = [movie.get('title') for movie in movies if movie.get('title')]
+    for techvj in movienamelist:
+        try:
+            mv_rqst = mv_rqst.capitalize()
+        except Exception as e:
+            print(f"Error capitalizing movie request: {e}")
+            continue
+
+        if mv_rqst.startswith(techvj[0]):
+            await auto_filter(client, techvj, msg, reply_msg, False)
+            return
+
+    reqst_gle = mv_rqst.replace(" ", "+")
+    button = [[InlineKeyboardButton("Gᴏᴏɢʟᴇ", url=f"https://www.google.com/search?q={reqst_gle}")]]
+    try:
+        if NO_RESULTS_MSG:
+            await client.send_message(
+                chat_id=LOG_CHANNEL,
+                text=(script.NORSLTS.format(reqstr.id, reqstr.mention, mv_rqst))
+            )
+        k = await reply_msg.edit_text(
+            text=script.I_CUDNT.format(mv_rqst),
+            reply_markup=InlineKeyboardMarkup(button)
+        )
+        await asyncio.sleep(30)
+        await k.delete()
+    except Exception as e:
+        print(f"Error in Google button or AI message: {e}")
+
+async def manual_spell_check(client, msg, reply_msg, mv_rqst, movielist, script, reqstr1, settings):
+    try:
+        # Prepare buttons for manual spell-check results
+        btn = [
+            [
+                InlineKeyboardButton(
+                    text=movie_name.strip(),
+                    callback_data=f"spol#{reqstr1}#{k}",
+                )
+            ]
+            for k, movie_name in enumerate(movielist)
+        ]
+        btn.append([InlineKeyboardButton(text="Close", callback_data=f'spol#{reqstr1}#close_spellcheck')])
+        
+        spell_check_del = await reply_msg.edit_text(
+            text=script.CUDNT_FND.format(mv_rqst),
+            reply_markup=InlineKeyboardMarkup(btn)
+        )
+
+        # Auto-delete the spell-check message if enabled
+        if settings.get('auto_delete', False):
+            await asyncio.sleep(600)
+            await spell_check_del.delete()
+    except Exception as e:
+        print(f"Error during manual spell-check: {e}")
+        
 
     movienamelist = [movie.get('title') for movie in movies if movie.get('title')]
     for techvj in movienamelist:
