@@ -3205,8 +3205,7 @@ async def manual_spell_check(client, msg, reply_msg, mv_rqst, movielist, script,
         # Auto-delete the spell-check message if enabled
         if settings.get('auto_delete', False):
             await asyncio.sleep(600)
-            await spell_che
-ck_del.delete()
+            await spell_check_del.delete()
     except Exception as e:
         print(f"Error during manual spell-check: {e}")
 
